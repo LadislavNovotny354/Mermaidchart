@@ -1,0 +1,33 @@
+sequenceDiagram
+    actor User
+    participant FE as Frontend (SPA/Mobile)
+    participant BE as Backend API
+    participant Auth as Auth Server (e.g., Keycloak/Auth0)
+
+    Note over User, Auth: Fáze 1: Základní přihlášení
+    User->>FE: Zadá username/heslo a klikne "Login"
+    FE->>BE: POST /login {username, password}
+    BE->>Auth: Validate Credentials
+    alt Neplatné údaje
+        Auth-->>BE: Invalid credentials error
+        BE-->>FE: Error (401 Unauthorized)
+        FE->>User: Zobrazí chybu přihlášení
+    else Platné údaje + MFA vyžadováno
+        Auth-->>BE: Credentials OK, MFA required (session_state)
+        BE-->>FE: 200 OK {mfa_required: true, session_state}
+        FE->>User: Zobrazí obrazovku pro zadání MFA kódu
+    end
+
+    Note over User, Auth: Fáze 2: Multi-Factor Authentication
+    User->>FE: Zadá MFA kód (např. z TOTP aplikace)
+    FE->>BE: POST /login/mfa {mfa_code, session_state}
+    BE->>Auth: Verify MFA Code
+    alt Neplatný MFA kód
+        Auth-->>BE: Invalid MFA code error
+        BE-->>FE: Error (401 Invalid MFA)
+        FE->>User: Zobrazí chybu MFA
+    else MFA v pořádku
+        Auth-->>BE: Success + Generate Access/Refresh Tokens
+        BE-->>FE: 200 OK {access_token, refresh_token}
+        FE->>User: Přesměruje na Dashboard (přihlášen)
+    end
